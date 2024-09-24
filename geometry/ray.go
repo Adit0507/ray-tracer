@@ -21,3 +21,18 @@ func (r Ray) HitSphere(s Sphere) bool {
 	return discriminant > 0
 }
 
+func (r Ray) Color() Vector{
+	sphere := Sphere{Center: Vector{0.0, 0.0, -1.0}, Radius: 0.5}
+
+	if r.HitSphere(sphere){
+		return Vector{1.0, 0.0, 0.0}
+	}
+
+	unitDirection := r.Direction.Normalize()
+	t := 0.5*(unitDirection.Y +1)
+
+	white := Vector{1.0, 1.0, 1.0}
+    blue := Vector{0.5, 0.7, 1.0}
+
+	return white.MultiplyScaler(1 - t).Add(blue.MultiplyScaler(t))
+}
