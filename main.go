@@ -7,24 +7,37 @@ import (
 )
 
 func main() {
-	sx := 400
+	sx := 500
 	sy := 300
 
-	const color = 240
+	const color = 255.99
 
 	f, err := os.Create("out.ppm")
 	defer f.Close()
+	check(err, "Error opening file: %v\n")
+
+	_, err = fmt.Fprintf(f, "P3\n%d %d\n255\n", sx, sy)
 	check(err, "Error writing to file: %v\n")
+
+	lowerLeft := geometry.Vector{-2.0, -1.0, -1.0}
+	horizontal := geometry.Vector{4.0, 0.0, 0.0}
+	vertical := geometry.Vector{0.0, 2.0, 0.0}
+	origin := geometry.Vector{0.0, 0.0, 0.0}
 
 	for j := sy - 1; j >= 0; j-- {
 		for i := 0; i < sx; i++ {
-			v := geometry.Vector{X: float64(i) / float64(sx), Y: float64(j) / float64(sy), Z: 0.2}
+			u := float64(i) / float64(sx)
+			v := float64(j) / float64(sy)
 
-			r := color * v.X
-			g := color * v.Y
-			b := color * v.Z
+			position := horizontal.MultiplyScaler(u).Add(vertical.MultiplyScaler(v))
+			direction := lowerLeft.Add(position)
 
-			_, err = fmt.Fprintf(f, "%d %d %d\n", r, g, b)
+			rgb := geometry.Ray{origin, direction}.Color()
+			ir := int(color * rgb.X)
+			ig := int(color * rgb.Y)
+			ib := int(color * rgb.Z)
+
+			_, err = fmt.Fprintf(f, "%d %d %d\n", ir, ig, ib)
 			check(err, "Error writing to file: %v \n")
 		}
 	}
