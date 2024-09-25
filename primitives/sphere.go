@@ -7,11 +7,6 @@ type Sphere struct {
 	Radius float64
 }
 
-type HitRecord struct {
-	T         float64
-	P, normal Vector
-}
-
 func (s *Sphere) Hit(r *Ray, tMin float64, tMax float64) (bool, HitRecord) {
 	oc := r.Origin.Subtract(s.Center)
 	a := r.Direction.Dot(r.Direction)
@@ -26,7 +21,7 @@ func (s *Sphere) Hit(r *Ray, tMin float64, tMax float64) (bool, HitRecord) {
 		if t < tMax && t > tMin {
 			rec.T = t
 			rec.P = r.Point(t)
-            rec.normal = (rec.P.Subtract(s.Center)).DivideScaler(s.Radius)
+            rec.Normal = (rec.P.Subtract(s.Center)).DivideScaler(s.Radius)
             return true, rec
 		}
 
@@ -34,7 +29,7 @@ func (s *Sphere) Hit(r *Ray, tMin float64, tMax float64) (bool, HitRecord) {
 		if t < tMax && t > tMin {
 			rec.T = t
             rec.P = r.Point(t)
-            rec.normal = (rec.P.Subtract(s.Center)).DivideScaler(s.Radius)
+            rec.Normal = (rec.P.Subtract(s.Center)).DivideScaler(s.Radius)
             return true, rec
 		}
 	}
