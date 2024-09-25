@@ -7,5 +7,5 @@ type Hit struct {
 }
 
 type Hitable interface {
-	Hit(r *Ray, tMin float64, tMax float64) (bool, Hit)
+	Hit(r Ray, tMin float64, tMax float64) (bool, Hit)
 }
