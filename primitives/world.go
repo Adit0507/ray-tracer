@@ -8,7 +8,7 @@ func (w *World) Add(h Hitable) {
 	w.Elements = append(w.Elements, h)
 }
 
-func (w *World) Hit(r Ray, tMin, tMax float64) (bool, Hit) {
+func (w *World) Hit(r Ray, tMin float64, tMax float64) (bool, Hit) {
 	hitAnything := false
 	closest := tMax
 	record := Hit{}
