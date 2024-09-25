@@ -5,6 +5,7 @@ import "math"
 type Sphere struct {
 	Center Vector
 	Radius float64
+	Material
 }
 
 func (s *Sphere) Hit(r *Ray, tMin float64, tMax float64) (bool, Hit) {
@@ -14,25 +15,25 @@ func (s *Sphere) Hit(r *Ray, tMin float64, tMax float64) (bool, Hit) {
 	c := oc.Dot(oc) - s.Radius*s.Radius
 	discriminant := b*b - 4*a*c
 
-	rec := Hit{}
+	hit := Hit{Material: s.Material}
 
 	if discriminant > 0.0 {
-		t := (-b - math.Sqrt(b*b-a*c))/a
+		t := (-b - math.Sqrt(b*b-a*c)) / a
 		if t < tMax && t > tMin {
-			rec.T = t
-			rec.P = r.Point(t)
-            rec.Normal = (rec.P.Subtract(s.Center)).DivideScaler(s.Radius)
-            return true, rec
+			hit.T = t
+			hit.P = r.Point(t)
+			hit.Normal = hit.P.Subtract(s.Center).DivideScaler(s.Radius)
+			return true, hit
 		}
 
-		t = (-b + math.Sqrt(b*b-a*c))/a
+		t = (-b + math.Sqrt(discriminant)) / a
 		if t < tMax && t > tMin {
-			rec.T = t
-            rec.P = r.Point(t)
-            rec.Normal = (rec.P.Subtract(s.Center)).DivideScaler(s.Radius)
-            return true, rec
+			hit.T = t
+			hit.P = r.Point(t)
+			hit.Normal = hit.P.Subtract(s.Center).DivideScaler(s.Radius) 
+			return true, hit
 		}
 	}
 
-	return false, rec
+	return false, Hit{}
 }
