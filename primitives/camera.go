@@ -4,8 +4,8 @@ type Camera struct {
 	lowerLeft, horizontal, vertical, origin Vector
 }
 
-func NewCamera() *Camera {
-	c := new(Camera)
+func NewCamera() Camera {
+	c := Camera{}
 
 	c.lowerLeft = Vector{-2, -1, -1}
 	c.horizontal = Vector{4, 0, 0}
@@ -15,18 +15,18 @@ func NewCamera() *Camera {
 	return c
 }
 
-func (c *Camera) position(u float64, v float64) Vector {
+func (c Camera) position(u float64, v float64) Vector {
 	horizontal := c.horizontal.MultiplyScaler(u)
 	vertical := c.vertical.MultiplyScaler(v)
 
 	return horizontal.Add(vertical)
 }
 
-func (c *Camera) direction(position Vector) Vector {
+func (c Camera) direction(position Vector) Vector {
 	return c.lowerLeft.Add(position)
 }
 
-func (c *Camera) RayAt(u float64, v float64) Ray {
+func (c Camera) RayAt(u float64, v float64) Ray {
 	position := c.position(u, v)
 	direction := c.direction(position)
 
