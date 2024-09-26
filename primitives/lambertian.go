@@ -1,7 +1,7 @@
 package primitives
 
 type Lambertian struct {
-	C Vector
+	C Color
 }
 
 func (l Lambertian) Bounce(input Ray, hit Hit) (bool, Ray) {
@@ -9,6 +9,6 @@ func (l Lambertian) Bounce(input Ray, hit Hit) (bool, Ray) {
 	return true, Ray{hit.P, direction}
 }
 
-func (l Lambertian) Color() Vector {
+func (l Lambertian) Color() Color {
 	return l.C
 }
