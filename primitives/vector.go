@@ -21,6 +21,25 @@ func VectorInUnitSphere() Vector {
 	}
 }
 
+func (v Vector) Reflect(o Vector) Vector {
+	b := 2*v.Dot(o)
+	return v.Subtract(o.MultiplyScaler(b))
+}
+
+func (v Vector) Refract(o Vector, n float64) (bool,Vector) {
+	uv := v.Normalize()
+	uo := o.Normalize()
+	dt := uv.Dot(uo)
+	discriminant := 1.0 - (n * n * (1 - dt*dt))
+	if discriminant > 0 {
+		a := uv.Subtract(o.MultiplyScaler(dt)).MultiplyScaler(n)
+		b := o.MultiplyScaler(math.Sqrt(discriminant))
+		return true, a.Subtract(b)
+	}
+
+	return false, Vector{}
+}
+
 func (v Vector) Multiply(o Vector) Vector {
 	return Vector{v.X * o.X, v.Y * o.Y, v.Z * o.Z}
 }
