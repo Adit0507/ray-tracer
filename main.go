@@ -10,18 +10,13 @@ import (
 )
 
 const (
-	sx = 400
-	sy = 200
+	sx = 500
+	sy = 300
 	ns = 100
 	c  = 255.99
 )
 
-var (
-	white = p.Vector{1.0, 1.0, 1.0}
-	blue  = p.Vector{0.5, 0.7, 1.0}
-)
-
-func color(r p.Ray, world p.Hitable, depth int) p.Vector {
+func color(r p.Ray, world p.Hitable, depth int) p.Color {
 	hit, record := world.Hit(r, 0.001, math.MaxFloat64)
 
 	if hit {
@@ -32,17 +27,10 @@ func color(r p.Ray, world p.Hitable, depth int) p.Vector {
 				return record.Material.Color().Multiply(newColor)
 			}
 		}
-		return p.Vector{}
+		return p.Black
 	}
 
-	return gradient(r)
-}
-
-func gradient(r p.Ray) p.Vector {
-	v := r.Direction.Normalize()
-	t := 0.5 * (v.Y + 1)
-
-	return white.MultiplyScaler(1 - t).Add(blue.MultiplyScaler(t))
+	return p.Gradient(p.White, p.Blue, r.Direction.Normalize().Y)
 }
 
 func createFile() *os.File {
@@ -53,17 +41,17 @@ func createFile() *os.File {
 	return f
 }
 
-func writeFile(f *os.File, rgb p.Vector) {
-	ir := int(c * math.Sqrt(rgb.X))
-	ig := int(c * math.Sqrt(rgb.Y))
-	ib := int(c * math.Sqrt(rgb.Z))
+func writeFile(f *os.File, rgb p.Color) {
+	ir := int(c * math.Sqrt(rgb.R))
+	ig := int(c * math.Sqrt(rgb.G))
+	ib := int(c * math.Sqrt(rgb.B))
 
 	_, err := fmt.Fprintf(f, "%d %d %d\n", ir, ig, ib)
 	check(err, "Error writing to file: %v\n")
 }
 
-func sample(world *p.World, camera *p.Camera, i, j int) p.Vector {
-	rgb := p.Vector{}
+func sample(world *p.World, camera *p.Camera, i, j int) p.Color {
+	rgb := p.Color{}
 
 	for s := 0; s < ns; s++ {
 		u := (float64(i) + rand.Float64()) / float64(sx)
@@ -73,7 +61,7 @@ func sample(world *p.World, camera *p.Camera, i, j int) p.Vector {
 		rgb = rgb.Add(color(ray, world, 0))
 	}
 
-	return rgb.DivideScaler(float64(ns))
+	return rgb.DivideScalar(float64(ns))
 }
 
 func render(world *p.World, camera *p.Camera) {
@@ -85,10 +73,12 @@ func render(world *p.World, camera *p.Camera) {
 			fmt.Print(".")
 		}
 	}()
+
 	f := createFile()
 	defer f.Close()
 
 	start := time.Now()
+
 	for j := sy - 1; j >= 0; j-- {
 		for i := 0; i < sx; i++ {
 			rgb := sample(world, camera, i, j)
@@ -103,16 +93,13 @@ func main() {
 	camera := p.NewCamera()
 	world := p.World{}
 
-	sphere := p.Sphere{p.Vector{0, 0, -1}, 0.5, p.Lambertian{p.Vector{0.8, 0.3, 0.3}}}
-	floor := p.Sphere{p.Vector{0, -100.5, -1}, 100, p.Lambertian{p.Vector{0.8, 0.8, 0.0}}}
-	left := p.Sphere{p.Vector{-1, 0, -1}, 0.5, p.Metal{p.Vector{0.8, 0.8, 0.8}, 0.0}}
-	right := p.Sphere{p.Vector{1, 0, -1}, 0.5, p.Metal{p.Vector{0.8, 0.6, 0.2}, 0.3}}
+	sphere := p.NewSphere(0, 0, -1, 0.5, p.Lambertian{p.Color{0.8, 0.3, 0.3}})
+	floor := p.NewSphere(0, -100.5, -1, 100, p.Lambertian{p.Color{0.8, 0.8, 0.0}})
+	metal := p.NewSphere(1, 0, -1, 0.5, p.Metal{p.Color{0.8, 0.6, 0.2}, 0.3})
+	glass := p.NewSphere(-1, 0, -1, 0.5, p.Dielectric{})
+	bubble := p.NewSphere(-1, 0, -1, -0.45, p.Dielectric{1.5})
 
-	world.Add(&sphere)
-	world.Add(&floor)
-	world.Add(&left)
-	world.Add(&right)
-
+	world.AddAll(&sphere, &floor, &metal, &glass, &bubble)
 	render(&world, &camera)
 }
 
