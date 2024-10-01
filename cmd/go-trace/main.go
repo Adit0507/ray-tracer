@@ -1,111 +1,147 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"math"
-	"math/rand"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"os"
-	p "ray/primitives"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
+
+	p "ray/primitives"
+	r "ray/render"
 )
+
+var Version = "0.0.0"
 
 const (
-	sx = 500
-	sy = 300
-	ns = 100
-	c  = 255.99
+	defaultFov      = 75
+	defualtWidth    = 600
+	defaultHeight   = 500
+	defaultSamples  = 100
+	defaultAperture = 0.01
+
+	maxFov      = 120
+	maxWidth    = 4096
+	maxHeight   = 2160
+	maxSamples  = 1000
+	maxAperture = 0.9
+
+	minFov      = 10
+	minWidth    = 200
+	minHeight   = 100
+	minSamples  = 1
+	minAperture = 0.001
+
+	progressBarWidth = 80
 )
 
-func color(r p.Ray, world p.Hitable, depth int) p.Color {
-	hit, record := world.Hit(r, 0.001, math.MaxFloat64)
+type fileType int
 
-	if hit {
-		if depth < 50 {
-			bounced, bouncedRay := record.Bounce(r, record)
-			if bounced {
-				newColor := color(bouncedRay, world, depth+1)
-				return record.Material.Color().Multiply(newColor)
-			}
-		}
-		return p.Black
+const (
+	pngType fileType = iota
+	jpegType
+)
+
+var (
+	aperture, fov                float64
+	width, height, samples, cpus int
+	file                         string
+	x, y, z                      float64
+	version                      bool
+
+	imageTypes = map[string]interface{}{
+		".png":  pngType,
+		".jpg":  jpegType,
+		".jpeg": jpegType,
+	}
+)
+
+func main() {
+	BoundFloat64Var(&fov, "fov", defaultFov, minFov, maxFov, "vertical field of view")
+	BoundIntVar(&width, "w", defualtWidth, minWidth, maxWidth, "width of image (pixels)")
+	BoundIntVar(&height, "h", defaultHeight, minHeight, maxHeight, "height of image (pixels)")
+	BoundIntVar(&samples, "n", defaultSamples, minSamples, maxSamples, "number of samples per pixel for AA")
+	BoundFloat64Var(&aperture, "a", defaultAperture, minAperture, maxAperture, "camera aperture")
+	BoundIntVar(&cpus, "cpus", runtime.NumCPU(), 1, runtime.NumCPU(), "number of CPUs to use")
+	FilenameVar(&file, "o", "out.png", imageTypes, "output filename")
+
+	flag.Float64Var(&x, "x", 10, "look from X")
+	flag.Float64Var(&y, "y", 4, "look from Y")
+	flag.Float64Var(&z, "z", 6, "look from Z")
+
+	flag.BoolVar(&version, "version", false, "show version and exit")
+	flag.Parse()
+
+	if version {
+		fmt.Printf("go-trace %s\n", Version)
+		os.Exit(0)
 	}
 
-	return p.Gradient(p.White, p.Blue, r.Direction.Normalize().Y)
-}
+	lookFrom := p.Vector{X: x, Y: y, Z: z}
+	lookAt := p.Vector{X: 0, Y: 0, Z: -1}
 
-func createFile() *os.File {
-	f, err := os.Create("out.ppm")
-	check(err, "Error opening file: %v\n")
-	_, err = fmt.Fprintf(f, "P3\n%d %d\n255\n", sx, sy)
-	check(err, "Error writting to file: %v\n")
-	return f
-}
+	camera := p.NewCamera(lookFrom, lookAt, fov, float64(width)/float64(height), aperture)
+	start := time.Now()
 
-func writeFile(f *os.File, rgb p.Color) {
-	ir := int(c * math.Sqrt(rgb.R))
-	ig := int(c * math.Sqrt(rgb.G))
-	ib := int(c * math.Sqrt(rgb.B))
+	scene := r.RandomScene()
 
-	_, err := fmt.Fprintf(f, "%d %d %d\n", ir, ig, ib)
-	check(err, "Error writing to file: %v\n")
-}
+	fmt.Printf("\nRendering %d x %d pixel scene with %d objects:", width, height, scene.Count())
+	fmt.Printf("\n[%d cpus, %d samples/pixel, %.2f° fov, %.2f aperture]", cpus, samples, fov, aperture)
 
-func sample(world *p.World, camera *p.Camera, i, j int) p.Color {
-	rgb := p.Color{}
+	ch := make(chan int, height)
+	defer close(ch)
 
-	for s := 0; s < ns; s++ {
-		u := (float64(i) + rand.Float64()) / float64(sx)
-		v := (float64(j) + rand.Float64()) / float64(sy)
+	go outputProgress(ch, height)
+	image := r.Do(scene, camera, cpus, samples, width, height, ch)
 
-		ray := camera.RayAt(u, v)
-		rgb = rgb.Add(color(ray, world, 0))
+	if err := writeFile(file, image); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
 	}
 
-	return rgb.DivideScalar(float64(ns))
+	fmt.Printf("\nDone. Elapsed: %v", time.Since(start))
+	fmt.Printf("\nOutput to: %s\n", file)
 }
 
-func render(world *p.World, camera *p.Camera) {
-	ticker := time.NewTicker(time.Millisecond * 100)
+func outputProgress(ch <- chan int, rows int) {
+	fmt.Println()
+	for i := 1; i <= rows; i++ {
+		<-ch
+		pct := 100 * float64(i) / float64(rows)
+		filled := (progressBarWidth * i) / rows
+		bar := strings.Repeat("=", filled) + strings.Repeat("-", progressBarWidth-filled)
+		fmt.Printf("\r[%s] %.2f%%", bar, pct)
+	}
+	fmt.Println()
+}
 
-	go func() {
-		for {
-			<-ticker.C
-			fmt.Print(".")
+func writeFile(path string, img image.Image) error {
+	file, err :=os.Create(path)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if cerr := file.Close(); cerr != nil  && err == nil{
+			err = cerr
 		}
 	}()
 
-	f := createFile()
-	defer f.Close()
+	ext := strings.ToLower(filepath.Ext(path))
 
-	start := time.Now()
-
-	for j := sy - 1; j >= 0; j-- {
-		for i := 0; i < sx; i++ {
-			rgb := sample(world, camera, i, j)
-			writeFile(f, rgb)
-		}
+	switch imageType := imageTypes[ext]; imageType {
+	case jpegType:
+		err = jpeg.Encode(file, img, nil)
+	case pngType:
+		err = png.Encode(file, img)
+	default:
+		err = fmt.Errorf("Invalid extension: %s", ext)
 	}
-	ticker.Stop()
-	fmt.Printf("\nDone.\nElapsed: %v\n", time.Since(start))
-}
 
-func main() {
-	camera := p.NewCamera()
-	world := p.World{}
-
-	sphere := p.NewSphere(0, 0, -1, 0.5, p.Lambertian{p.Color{0.8, 0.3, 0.3}})
-	floor := p.NewSphere(0, -100.5, -1, 100, p.Lambertian{p.Color{0.8, 0.8, 0.0}})
-	metal := p.NewSphere(1, 0, -1, 0.5, p.Metal{p.Color{0.8, 0.6, 0.2}, 0.3})
-	glass := p.NewSphere(-1, 0, -1, 0.5, p.Dielectric{})
-	bubble := p.NewSphere(-1, 0, -1, -0.45, p.Dielectric{1.5})
-
-	world.AddAll(&sphere, &floor, &metal, &glass, &bubble)
-	render(&world, &camera)
-}
-
-func check(e error, s string) {
-	if e != nil {
-		fmt.Fprintf(os.Stderr, s, e)
-		os.Exit(1)
-	}
+	return err
 }
