@@ -13,7 +13,8 @@ func (d Dielectric) Color() Color {
 	return Color{1, 1, 1}
 }
 
-func (d Dielectric) Bounce(input Ray, hit Hit) (bool, Ray) {
+
+func (d Dielectric) Bounce(input Ray, hit Hit, rnd *rand.Rand) (bool, Ray) {
 	var outwardNormal Vector
 	var niOverNt, cosine float64
 
@@ -43,7 +44,7 @@ func (d Dielectric) Bounce(input Ray, hit Hit) (bool, Ray) {
 		reflectProbability = 1.0
 	}
 
-	if rand.Float64() < reflectProbability {
+	if rnd.Float64() < reflectProbability {
 		reflected := input.Direction.Reflect(hit.Normal)
 		return true, Ray{hit.P, reflected}
 	}
