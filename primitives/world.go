@@ -1,11 +1,9 @@
 package primitives
 
-type World struct {
-	Elements []Hitable
-}
+type World []Hitable
 
 func (w *World) Add(h Hitable) {
-	w.Elements = append(w.Elements, h)
+	*w = append(*w, h)
 }
 
 func (w *World) AddAll(hitables ...Hitable) {
@@ -14,17 +12,24 @@ func (w *World) AddAll(hitables ...Hitable) {
 	}
 }
 
+func (w *World) Count()  int{
+	return len(*w)
+}
+
 func (w *World) Hit(r Ray, tMin float64, tMax float64) (bool, Hit) {
 	hitAnything := false
 	closest := tMax
 	record := Hit{}
 
-	for _, element := range w.Elements {
-		hit, tempRecord := element.Hit(r, tMin, closest)
-		if hit {
-			hitAnything = true
-			closest = tempRecord.T
-			record = tempRecord
+	for _, element := range *w {
+		if element != nil {
+			hit, tempRecord := element.Hit(r, tMin, closest)
+			if hit {
+				hitAnything = true
+				closest = tempRecord.T
+				record = tempRecord
+			}
+		
 		}
 	}
 
