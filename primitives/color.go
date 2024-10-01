@@ -1,5 +1,7 @@
 package primitives
 
+import "math"
+
 type Color struct {
 	R, G, B float64
 }
@@ -9,6 +11,14 @@ var (
 	White = Color{1, 1, 1}
 	Blue  = Color{0.5, 0.7, 1}
 )
+
+func (c Color) RGBA() (r, g, b, a uint32) {
+	r = uint32(math.Sqrt(c.R) * 0xffff)
+	g = uint32(math.Sqrt(c.G) * 0xffff)
+	b = uint32(math.Sqrt(c.B) * 0xffff)
+	a = 0xffff
+	return
+}
 
 func (c Color) Add(o Color) Color {
 	return Color{c.R + o.R, c.G + o.G, c.B + o.B}
