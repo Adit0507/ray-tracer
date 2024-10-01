@@ -8,8 +8,8 @@ type Sphere struct {
 	Material
 }
 
-func NewSphere(x, y,z, radius float64, m Material) Sphere{
-	return Sphere{Vector{x,y,z}, radius, m}
+func NewSphere(x, y,z, radius float64, m Material) *Sphere{
+	return &Sphere{Vector{x,y,z}, radius, m}
 }
 
 func (s *Sphere) Hit(r Ray, tMin float64, tMax float64) (bool, Hit) {
@@ -17,12 +17,12 @@ func (s *Sphere) Hit(r Ray, tMin float64, tMax float64) (bool, Hit) {
 	a := r.Direction.Dot(r.Direction)
 	b := 2.0 * oc.Dot(r.Direction)
 	c := oc.Dot(oc) - s.Radius*s.Radius
-	discriminant := b*b - 4*a*c
+	discriminant := b*b - a*c
 
 	hit := Hit{Material: s.Material}
 
 	if discriminant > 0.0 {
-		t := (-b - math.Sqrt(b*b-a*c)) / a
+		t := (-b - math.Sqrt(discriminant)) / a
 		if t < tMax && t > tMin {
 			hit.T = t
 			hit.P = r.Point(t)
